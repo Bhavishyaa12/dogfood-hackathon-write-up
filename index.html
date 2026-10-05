@@ -1,12 +1,425 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dogfood hackathon write-up</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="en" prefix="og: https://ogp.me/ns#">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Primary SEO Meta Tags -->
+  <title>Offline Self-Hostable Hackathon Portal with MERN and Docker | DOGFOOD 2026 Writeup</title>
+  <meta name="title" content="Offline Self-Hostable Hackathon Portal with MERN and Docker | DOGFOOD 2026 Writeup" />
+  <meta name="description" content="How I built a self-hostable hackathon submission and judging portal (T1 + T2) with MERN and Docker Compose: backend-enforced judge isolation, rotating refresh tokens and z-score score normalization." />
+  <meta name="keywords" content="hackathon portal, MERN stack, docker compose, judge isolation, score normalization, jwt refresh token rotation, self-hosted, offline" />
+  <meta name="author" content="Bhavishya" />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <link rel="canonical" href="https://github.com/Bhavishyaa12/Dogfood" />
+
+  <!-- Open Graph / Facebook / LinkedIn -->
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://github.com/Bhavishyaa12/Dogfood" />
+  <meta property="og:title" content="Offline Self-Hostable Hackathon Portal with MERN and Docker | DOGFOOD 2026 Writeup" />
+  <meta property="og:description" content="Technical breakdown of a hackathon portal that runs with one docker compose command and enforces judge isolation on the backend." />
+  <meta property="og:site_name" content="Dogfood Writeup" />
+
+  <!-- Twitter / X Cards -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="https://github.com/Bhavishyaa12/Dogfood" />
+  <meta name="twitter:title" content="Offline Self-Hostable Hackathon Portal with MERN and Docker | DOGFOOD 2026 Writeup" />
+  <meta name="twitter:description" content="One command, four containers, seven passing acceptance checks. How the Dogfood judging portal works." />
+
+  <!-- Structured Data: JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "TechArticle",
+        "headline": "Building an Offline Self-Hostable Hackathon Portal with MERN and Docker Compose",
+        "description": "A technical breakdown of the DOGFOOD 2026 portal covering T1 core platform and T2 judging.",
+        "author": { "@type": "Person", "name": "Bhavishya", "url": "https://github.com/Bhavishyaa12" },
+        "datePublished": "2026-10-05",
+        "inLanguage": "en",
+        "keywords": ["MERN", "Docker Compose", "JWT", "Hackathon", "Judging", "Score Normalization"]
+      },
+      {
+        "@type": "SoftwareSourceCode",
+        "name": "Dogfood",
+        "programmingLanguage": "JavaScript",
+        "codeRepository": "https://github.com/Bhavishyaa12/Dogfood",
+        "author": { "@type": "Person", "name": "Bhavishya", "url": "https://github.com/Bhavishyaa12" }
+      }
+    ]
+  }
+  </script>
+
+  <script>
+    (function () {
+      const savedTheme = localStorage.getItem("theme") || "system";
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const resolvedTheme = savedTheme === "system" ? (prefersDark ? "dark" : "light") : savedTheme;
+      document.documentElement.setAttribute("data-theme", resolvedTheme);
+    })();
+  </script>
+
+  <!-- Preconnect CDNs -->
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Lenis CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/lenis@1.1.9/dist/lenis.css" />
+
+  <!-- Local Stylesheet -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- Reading Progress Bar -->
+  <div id="progressBar"></div>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="#" class="site-title" aria-label="Home">Dogfood</a>
+
+      <div class="header-actions">
+        <a href="https://github.com/Bhavishyaa12/Dogfood" target="_blank" rel="noopener" class="header-repo" aria-label="GitHub Repository">
+          <i class="fa-brands fa-github"></i>
+          <span>GitHub</span>
+        </a>
+
+        <div class="theme-menu-container">
+          <button id="themeMenuButton" class="theme-menu-btn" aria-haspopup="true" aria-expanded="false" aria-label="Theme menu">
+            <i id="themeCurrentIcon" class="fa-solid fa-circle-half-stroke"></i>
+            <span id="themeCurrentLabel">Theme</span>
+            <i class="fa-solid fa-chevron-down caret-icon"></i>
+          </button>
+
+          <ul id="themeDropdown" class="theme-dropdown" role="menu" hidden>
+            <li role="none">
+              <button class="theme-option" role="menuitem" data-theme-value="system">
+                <i class="fa-solid fa-desktop"></i>
+                <span>OS Default</span>
+                <i class="fa-solid fa-check checkmark"></i>
+              </button>
+            </li>
+            <li role="none">
+              <button class="theme-option" role="menuitem" data-theme-value="light">
+                <i class="fa-solid fa-sun"></i>
+                <span>Light</span>
+                <i class="fa-solid fa-check checkmark"></i>
+              </button>
+            </li>
+            <li role="none">
+              <button class="theme-option" role="menuitem" data-theme-value="dark">
+                <i class="fa-solid fa-moon"></i>
+                <span>Dark</span>
+                <i class="fa-solid fa-check checkmark"></i>
+              </button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrapper">
+    <main>
+      <article>
+        <header class="article-meta">
+          <div class="meta">DOGFOOD 2026 HACKATHON WRITE-UP - T1 + T2</div>
+          <h1>Built a Self-Hostable Hackathon Portal That Runs Offline With One Command</h1>
+        </header>
+
+        <section class="writeup-section">
+          <h2>1. What I Built by Hand</h2>
+          <p>
+            I made a hackathon submission and judging portal for the DOGFOOD 2026 spec. It covers T1 which is the core platform (accounts, roles, events, teams, draft projects, deadline-enforced submission and a public gallery) and T2 which is judging (invitations, assignments, a weighted rubric, score isolation between judges, an organizer dashboard, score normalization and a CSV export).
+          </p>
+          <p>
+            The thing I cared about most was that the rules live in the backend. A hackathon portal is a place where people are competing for prizes so hiding a button in React is not security. If a judge can open the browser console and ask for another judge's scores then the scoring is already broken. So every rule in this write-up is enforced by the API and the frontend is just a nicer way to call it.
+          </p>
+          <p>
+            It is a MERN stack (MongoDB, Express, React, Node) so this one is not a zero-dependency build like my last write-up. The goal here was different: the whole thing has to run on one machine with no hosted APIs, no hosted database and no OAuth provider.
+          </p>
+        </section>
+
+        <section class="writeup-section">
+          <h2>2. Run It With One Command</h2>
+          <pre><code>docker compose up --build</code></pre>
+          <p>
+            That starts four containers: MongoDB, a one-shot seed service, the Express backend and the React frontend behind Nginx. The frontend comes up at <code>http://localhost:8080</code>. Startup order is handled with health checks instead of sleep commands: seed waits for Mongo to be healthy, the backend waits for seed to complete successfully and the frontend waits for the backend health check on <code>/api/health</code>.
+          </p>
+          <p>
+            Seeding uses fixed IDs and upserts so running <code>docker compose run --rm seed</code> again does not create duplicate fixture records. If the official fixture file is missing the seed falls back to a small deterministic demo dataset so the app can still be shown on a laptop with nothing else.
+          </p>
+        </section>
+
+        <section class="writeup-section">
+          <h2>3. Acceptance Proof</h2>
+          <p>
+            The hackathon ships its own checker called run.py. It is standard library only (urllib, argparse, re) and it even carries a tiny TOML parser for Pythons older than 3.11, so it ties back to the zero-dependency idea from my other write-up. I ran it against the live stack and saved the output to acceptance-report.txt:
+          </p>
+          <pre><code>DOGFOOD 2026 acceptance report
+portal: http://localhost:8080
+claimed: T1 T2
+fixtures: fixtures.json
+
+T1  gallery is public ................. PASS
+T1  project from fixtures shown ....... PASS
+T1  closed event refuses submissions .. PASS
+T2  judge sees own scores ............. PASS
+T2  judge cannot see peer scores ...... PASS
+T2  participant blocked ............... PASS
+T2  csv export works .................. PASS
+
+claimed T1 T2, verified T1 T2</code></pre>
+          <p>
+            Seven checks pass for the two tiers I claimed. The two I like most are <strong>judge cannot see peer scores</strong> and <strong>closed event refuses submissions</strong> because both prove a rule is enforced by the server and not by the UI.
+          </p>
+        </section>
+
+        <section class="writeup-section">
+          <h2>4. What I Reached For and Why</h2>
+          <p>
+            Here is every major piece of the stack and the decision behind it:
+          </p>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tool</th>
+                  <th>Used For</th>
+                  <th>Why and How</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>React 19 + <code>vite</code></td>
+                  <td>Frontend SPA</td>
+                  <td>Gallery, dashboards, judge and organizer screens. Vite builds it and an Nginx container serves the static output so there is no Node process running in production for the frontend.</td>
+                </tr>
+                <tr>
+                  <td><code>express</code> 5</td>
+                  <td>REST API</td>
+                  <td>Every route goes through one <code>auth</code> middleware and then <code>roleAuth(...)</code>. Keeping those two tiny functions in one file made it easy to check that no route was left open by accident.</td>
+                </tr>
+                <tr>
+                  <td>MongoDB 8 + <code>mongoose</code></td>
+                  <td>Database</td>
+                  <td>Documents fit the fixture shape (event, tracks, rubric inside one doc). Unique compound indexes do the heavy lifting for duplicate assignments and duplicate scores.</td>
+                </tr>
+                <tr>
+                  <td><code>bcryptjs</code></td>
+                  <td>Password hashing</td>
+                  <td>Cost factor 12. The pure JS version means the Docker build never needs a C toolchain.</td>
+                </tr>
+                <tr>
+                  <td><code>jsonwebtoken</code> + <code>cookie-parser</code></td>
+                  <td>Sessions</td>
+                  <td>10 minute access JWT and a 7 day refresh JWT in an HTTP-only SameSite=strict cookie. The refresh token is rotated on every use.</td>
+                </tr>
+                <tr>
+                  <td>Node <code>crypto</code></td>
+                  <td>Token hashing and invite tokens</td>
+                  <td>Refresh tokens are stored as SHA-256 hashes, invite tokens come from <code>crypto.randomBytes(24)</code>. No uuid package needed.</td>
+                </tr>
+                <tr>
+                  <td>Docker Compose</td>
+                  <td>One command run</td>
+                  <td>Four services: mongo, a one-shot seed, backend and frontend. <code>depends_on</code> with health checks decides the startup order, so seed never runs before Mongo is ready.</td>
+                </tr>
+                <tr>
+                  <td>Python stdlib (<code>run.py</code>)</td>
+                  <td>Acceptance checker</td>
+                  <td>Official checker is standard library only. It ships its own small TOML parser as a fallback for Pythons older than 3.11 where <code>tomllib</code> does not exist.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p><strong>Rotating Refresh Tokens</strong></p>
+          <p>
+            Sessions are a short-lived access token plus a refresh token that is stored only as a SHA-256 hash in the session collection, never raw. Every refresh issues a brand new refresh token and replaces the stored hash. If somebody replays an old token the hash does not match and the whole session gets revoked. Here is the actual hashing helper and the rotation chunk (trimmed a little):
+          </p>
+          <pre><code>const hashRefreshToken = (token) =&gt; {
+  return crypto.createHash(&quot;sha256&quot;).update(token).digest(&quot;hex&quot;);
+};
+
+const incomingHash = hashRefreshToken(refreshToken);
+
+if (incomingHash !== session.refreshToken) {
+  session.revoked = true;          // reuse detected, kill the whole session
+  await session.save();
+  clearRefreshCookie(res);
+  return res.status(403).json({
+    success: false,
+    message: &quot;Refresh token reuse detected&quot;,
+  });
+}
+
+// otherwise rotate: new refresh token, new hash, new expiry
+session.refreshToken = hashRefreshToken(newRefreshToken);
+session.expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRES);
+await session.save();</code></pre>
+
+          <p><strong>Judge Isolation in Code</strong></p>
+          <p>
+            This is the most important piece of the project. The route only lets the judge role in, and then the controller ignores any identity the client sends and uses the one inside the verified token:
+          </p>
+          <pre><code>router.get(&quot;/scores&quot;, auth, roleAuth(&quot;judge&quot;), c.getScores);
+
+const getScores = async (req, res) =&gt; {
+  if (req.query.judge) {
+    return res.status(403).json({
+      success: false,
+      message: &quot;Judges cannot request another judge&#x27;s scores&quot;,
+    });
+  }
+  // identity comes from the verified token, never from the client
+  const filter = { judge: req.user.userId };
+  const scores = await Score.find(filter).lean();
+  res.json({ success: true, scores });
+};</code></pre>
+          <p>
+            Submitting is the same idea. The judge has to have a <code>JudgeAssignment</code> for that project or the request gets a 403, and the final raw score is the weighted average <code>sum(score x weight / 100)</code> which always lands between 0 and 5.
+          </p>
+
+          <p><strong>Normalizing Judges Who Score Differently</strong></p>
+          <p>
+            Some judges give everybody a 4 and some judges are harsh, so a raw average is not fair. For every judge I take the mean and the population standard deviation of their raw scores, turn each score into a z-score and map it to <code>2.5 + 0.75 * z</code> clamped to 0 to 5. That puts a judge's average project at 2.5 and one standard deviation above it at 3.25. A judge with zero variance gets 2.5 on everything because there is nothing relative to normalize:
+          </p>
+          <pre><code>for (const rows of byJudge.values()) {
+  const vals = rows.map((x) =&gt; x.raw_total);
+  const mean = vals.reduce((a, b) =&gt; a + b, 0) / vals.length;
+  const variance =
+    vals.reduce((a, b) =&gt; a + (b - mean) ** 2, 0) / vals.length;
+  const sd = Math.sqrt(variance);
+  for (const s of rows) {
+    s.normalized_total =
+      sd === 0
+        ? 2.5
+        : Math.max(0, Math.min(5, 2.5 + 0.75 * ((s.raw_total - mean) / sd)));
+  }
+}</code></pre>
+          <p>
+            Normalized values are computed on the fly for the dashboard and the CSV and I never overwrite the raw score in the database, so the audit trail keeps exactly what each judge submitted.
+          </p>
+        </section>
+
+        <section class="writeup-section">
+          <h2>5. The 12 Rules the Backend Enforces</h2>
+          <p>
+            Here is what the API actually rejects or guarantees when it is hit directly, with no frontend involved:
+          </p>
+          <ul class="clean-options-list">
+            <li><code>GET /api/judge/scores?judge=...</code>: A judge who passes any judge id in the query gets a 403 straight away, and otherwise the filter is built from the token.</li>
+            <li><code>POST /api/judge/scores</code>: Rejected with 403 unless a <code>JudgeAssignment</code> exists for that exact judge and project.</li>
+            <li>Judging deadline: Scores after <code>judging_close</code> return 400 (Judging is closed).</li>
+            <li>Rubric completeness: Every rubric key must be present and every value must be a finite number from 0 to 5.</li>
+            <li>Rubric weights: Weights must total 100 when an event is created or edited, otherwise the API says so and saves nothing.</li>
+            <li>Submission deadline: Creating, editing and submitting a project all check <code>submissions_close</code> and return 400 once it has passed.</li>
+            <li>Locked projects: A project that is already submitted can not be edited again.</li>
+            <li>Required fields: Submitting needs a title, a summary and a repo URL. Creating needs a valid track and team membership.</li>
+            <li>Duplicates: Unique <code>(event, judge, project)</code> indexes on assignments and scores. A second assignment returns 409.</li>
+            <li><code>GET /api/export.csv</code>: Organizer and admin only. Judge and participant tokens get 403 from <code>roleAuth</code>.</li>
+            <li>Refresh token reuse: A refresh token that does not match the stored hash revokes the whole session.</li>
+            <li>Public gallery: Only <code>status: submitted</code> projects are returned and the page size is capped at 50.</li>
+          </ul>
+        </section>
+
+        <section class="writeup-section">
+          <h2>6. Known Gaps</h2>
+          <p>
+            A write-up that only lists wins is not very useful so here is what I would fix next:
+          </p>
+          <ul class="clean-options-list">
+            <li><code>express-rate-limit</code> is in <code>package.json</code> but I never wired it into the app. Login and refresh have no rate limit right now.</li>
+            <li>The CSV export escapes quotes but does not neutralize cells starting with <code>=</code>, <code>+</code>, <code>-</code> or <code>@</code>. A judge comment like <code>=HYPERLINK(...)</code> would run when an organizer opens the file in a spreadsheet.</li>
+            <li>Gallery search drops the query straight into a case-insensitive <code>$regex</code>. It works, but it should be escaped before it goes anywhere near a real deployment.</li>
+            <li>The JWT secrets in <code>docker-compose.yml</code> are local demo values on purpose. They have to be changed for anything that is not a laptop.</li>
+          </ul>
+          <p>
+            Fixture IDs are kept as strings while MongoDB ObjectIds are used for the internal relationships. That keeps the official fixtures importable without forcing their shape onto my schema, and it is the tradeoff I would make again.
+          </p>
+        </section>
+
+        <section class="writeup-section">
+          <h2>7. Other Projects &amp; Work</h2>
+          <p>
+            Apart from this hackathon portal here are some of my other open-source projects built for Linux environments and Android security:
+          </p>
+          <ul class="clean-options-list">
+            <li>
+              <a href="https://github.com/Bhavishyaa12/Linux_sys_admin_tool" target="_blank" rel="noopener" class="text-link"><code>Linux_sys_admin_tool</code></a>:
+              My zero-dependency Linux audit and security CLI in pure Python that replaced 12 third-party packages with <code>/proc</code> parsing and the standard library. Read the <a href="https://zero-dependency-hackathon-write-up.github.io/" target="_blank" rel="noopener" class="text-link">write-up</a>.
+            </li>
+            <li>
+              <a href="https://github.com/Bhavishyaa12/Linux-Server-Perfomance-stats-script" target="_blank" rel="noopener" class="text-link"><code>Linux-Server-Perfomance-stats-script</code></a>:
+              A lightweight Linux server monitoring script that captures CPU load averages memory usage swap usage and disk I/O stats without requiring heavy enterprise agents.
+            </li>
+            <li>
+              <a href="https://github.com/Bhavishyaa12/Ad-Nuke" target="_blank" rel="noopener" class="text-link"><code>Ad-Nuke</code></a>:
+              An Android tool and utility script focused on aggressive ad-blocking privacy controls by changing the /etc/hosts file and redirecting ad domains to localhost.
+            </li>
+            <li>
+              <a href="https://github.com/Bhavishyaa12/Linux-file-integrity-checker" target="_blank" rel="noopener" class="text-link"><code>Linux-file-integrity-checker</code></a>:
+              A dedicated Linux file integrity monitoring utility that tracks file modifications and hashes to detect unauthorized tampering on servers.
+            </li>
+          </ul>
+          <p>
+            You can check out the rest of my repos directly on my GitHub:
+            <a href="https://github.com/Bhavishyaa12" target="_blank" rel="noopener" class="text-link">github.com/Bhavishyaa12</a>
+          </p>
+        </section>
+      </article>
+
+      <section class="writeup-form">
+        <h2>Feedback</h2>
+        <p class="form-desc">
+          You can leave a hire note for me :)
+        </p>
+
+        <form action="https://formspree.io/f/xjyvozny" method="POST" id="submissionForm">
+          <div class="form-group">
+            <label for="visitorHandle">Your Email</label>
+            <input type="text" id="visitorHandle" name="sender" placeholder="e.g. yourname@domain.com" required />
+          </div>
+          <div class="form-group">
+            <label for="feedbackNotes">Suggestions</label>
+            <textarea id="feedbackNotes" name="message" rows="4" placeholder="Feedback or hire note..." required></textarea>
+          </div>
+          <button type="submit" id="submitBtn">Send</button>
+        </form>
+        <div id="formStatus" class="form-status"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Footer formatted to match header -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <span class="site-title">&copy; 2026 Bhavishya</span>
+      <div class="footer-actions">
+        <a href="https://github.com/Bhavishyaa12" target="_blank" rel="noopener" class="footer-link">
+          <i class="fa-brands fa-github"></i>
+          <span>GitHub</span>
+        </a>
+        <a href="https://linkedin.com/in/bhavishyaa12" target="_blank" rel="noopener" class="footer-link">
+          <i class="fa-brands fa-linkedin"></i>
+          <span>LinkedIn</span>
+        </a>
+        <a href="https://instagram.com/bhavishyaa_12" target="_blank" rel="noopener" class="footer-link">
+          <i class="fa-brands fa-instagram"></i>
+          <span>Instagram</span>
+        </a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://unpkg.com/lenis@1.1.9/dist/lenis.min.js"></script>
+  <script src="script.js"></script>
+</body>
 </html>
